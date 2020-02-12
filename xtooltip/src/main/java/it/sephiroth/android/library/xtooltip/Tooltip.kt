@@ -390,14 +390,11 @@ class Tooltip private constructor(private val context: Context, builder: Builder
             parent: View,
             anchor: View?,
             offset: Point,
-            gravities: ArrayList<Gravity>,
+            gravity: Gravity,
             params: WindowManager.LayoutParams,
-            fitToScreen: Boolean = false): Positions? {
+            findOffset: Boolean = false): Positions? {
 
         if (null == mPopupView) return null
-        if (gravities.isEmpty()) return null
-
-        val gravity = gravities.removeAt(0)
 
         Timber.i("findPosition. $gravity, offset: $offset")
 
@@ -457,9 +454,15 @@ class Tooltip private constructor(private val context: Context, builder: Builder
                 arrowPosition.y = h / 2 - mPadding / 2 - radius
             }
             Gravity.TOP -> {
-                contentPosition.x = anchorPosition[0] - w / 2
+                if (findOffset) {
+                    contentPosition.x = anchorPosition[0] - w + (anchor?.width ?: 0)
+                    arrowPosition.x = w - mPadding / 2 - radius - (anchor?.width ?: 0)
+                } else {
+                    contentPosition.x = anchorPosition[0] - w / 2
+                    arrowPosition.x = w / 2 - mPadding / 2 - radius
+                }
+
                 contentPosition.y = anchorPosition[1] - h
-                arrowPosition.x = w / 2 - mPadding / 2 - radius
             }
             Gravity.RIGHT -> {
                 contentPosition.x = anchorPosition[0]
@@ -467,9 +470,15 @@ class Tooltip private constructor(private val context: Context, builder: Builder
                 arrowPosition.y = h / 2 - mPadding / 2 - radius
             }
             Gravity.BOTTOM -> {
-                contentPosition.x = anchorPosition[0] - w / 2
+                if (findOffset) {
+                    contentPosition.x = anchorPosition[0] - w + (anchor?.width ?: 0)
+                    arrowPosition.x = w - mPadding / 2 - radius - (anchor?.width ?: 0)
+                } else {
+                    contentPosition.x = anchorPosition[0] - w / 2
+                    arrowPosition.x = w / 2 - mPadding / 2 - radius
+                }
+
                 contentPosition.y = anchorPosition[1]
-                arrowPosition.x = w / 2 - mPadding / 2 - radius
             }
             Gravity.CENTER -> {
                 contentPosition.x = anchorPosition[0] - w / 2
@@ -497,17 +506,16 @@ class Tooltip private constructor(private val context: Context, builder: Builder
         Timber.d("centerPosition: $centerPosition")
         Timber.d("contentPosition: $contentPosition")
 
-        if (fitToScreen) {
-            val finalRect = Rect(
-                    contentPosition.x,
-                    contentPosition.y,
-                    contentPosition.x + w,
-                    contentPosition.y + h
-                                )
-            if (!displayFrame.rectContainsWithTolerance(finalRect, mSizeTolerance.toInt())) {
-                Timber.e("content won't fit! $displayFrame, $finalRect")
-                return findPosition(parent, anchor, offset, gravities, params, fitToScreen)
-            }
+        val finalRect = Rect(
+                contentPosition.x,
+                contentPosition.y,
+                contentPosition.x + w,
+                contentPosition.y + h
+        )
+
+        if (!findOffset && !displayFrame.rectContainsWithTolerance(finalRect, mSizeTolerance.toInt())) {
+            Timber.e("content won't fit! $displayFrame, $finalRect")
+            return findPosition(parent, anchor, offset, gravity, params, true)
         }
 
         return Positions(displayFrame, PointF(arrowPosition), centerPosition, PointF(contentPosition), gravity, params)
@@ -629,7 +637,7 @@ class Tooltip private constructor(private val context: Context, builder: Builder
         }
     }
 
-    fun show(parent: View, gravity: Gravity, fitToScreen: Boolean = false) {
+    fun show(parent: View, gravity: Gravity) {
         if (isShowing || (mHasAnchorView && mAnchorView?.get() == null)) return
 
         isDismissed = false
@@ -638,10 +646,6 @@ class Tooltip private constructor(private val context: Context, builder: Builder
         val params = createPopupLayoutParams(parent.windowToken)
         preparePopup(params, gravity)
 
-        val gravities = mGravities.toCollection(ArrayList())
-        gravities.remove(gravity)
-        gravities.add(0, gravity)
-
         mPrepareFun?.invoke(this)
 
         invokePopup(
@@ -649,9 +653,8 @@ class Tooltip private constructor(private val context: Context, builder: Builder
                         parent,
                         mAnchorView?.get(),
                         mAnchorPoint,
-                        gravities,
-                        params,
-                        fitToScreen)
+                        gravity,
+                        params)
                    )
     }
 
