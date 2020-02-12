@@ -56,7 +56,7 @@ class Tooltip private constructor(private val context: Context, builder: Builder
     private val mGravities = Gravity.values().filter { it != Gravity.CENTER }
     private var isVisible = false
     private var isDismissed = false
-    private val mSizeTolerance = context.resources.displayMetrics.density * 10
+    private val mSizeTolerance = (context.resources.displayMetrics.density * -1).toInt()
 
     private val mLayoutInsetDecor = true
     private val mWindowLayoutType = WindowManager.LayoutParams.TYPE_APPLICATION_PANEL
@@ -384,8 +384,8 @@ class Tooltip private constructor(private val context: Context, builder: Builder
             anchor: View?,
             offset: Point,
             gravity: Gravity,
-            params: WindowManager.LayoutParams,
-            findOffset: Boolean = false): Positions? {
+            params: WindowManager.LayoutParams
+    ): Positions? {
 
         if (null == mPopupView) return null
 
@@ -411,14 +411,10 @@ class Tooltip private constructor(private val context: Context, builder: Builder
                     anchorPosition[1] += anchor.height / 2
                 }
                 Gravity.TOP -> {
-                    if (!findOffset) {
-                        anchorPosition[0] += anchor.width / 2
-                    }
+                    anchorPosition[0] += anchor.width / 2
                 }
                 Gravity.BOTTOM -> {
-                    if (!findOffset) {
-                        anchorPosition[0] += anchor.width / 2
-                    }
+                    anchorPosition[0] += anchor.width / 2
                     anchorPosition[1] += anchor.height
                 }
                 Gravity.CENTER -> {
@@ -451,21 +447,8 @@ class Tooltip private constructor(private val context: Context, builder: Builder
                 arrowPosition.y = h / 2 - mPadding / 2 - radius
             }
             Gravity.TOP -> {
-                if (findOffset) {
-                    val delta = anchorPosition[0] - (w - (anchor?.width ?: 0)) - 10
-
-                    if (delta > displayFrame.left) {
-                        contentPosition.x = delta
-                        arrowPosition.x = w + mPadding * 2 - (anchor?.width ?: 0) + 20
-                    } else {
-                        contentPosition.x = anchorPosition[0]
-                        arrowPosition.x = (anchor?.width ?: 0) / 2 - 20
-                    }
-                } else {
-                    contentPosition.x = anchorPosition[0] - w / 2
-                    arrowPosition.x = w / 2 - mPadding / 2 - radius
-                }
-
+                contentPosition.x = anchorPosition[0] - w / 2
+                arrowPosition.x = w / 2 - mPadding / 2 - radius - offset.x
                 contentPosition.y = anchorPosition[1] - h
             }
             Gravity.RIGHT -> {
@@ -474,21 +457,8 @@ class Tooltip private constructor(private val context: Context, builder: Builder
                 arrowPosition.y = h / 2 - mPadding / 2 - radius
             }
             Gravity.BOTTOM -> {
-                if (findOffset) {
-                    val delta = anchorPosition[0] - (w - (anchor?.width ?: 0)) - 10
-
-                    if (delta > displayFrame.left) {
-                        contentPosition.x = delta
-                        arrowPosition.x = w + mPadding * 2 - (anchor?.width ?: 0) + 20
-                    } else {
-                        contentPosition.x = anchorPosition[0]
-                        arrowPosition.x = (anchor?.width ?: 0) / 2 - 20
-                    }
-                } else {
-                    contentPosition.x = anchorPosition[0] - w / 2
-                    arrowPosition.x = w / 2 - mPadding / 2 - radius
-                }
-
+                contentPosition.x = anchorPosition[0] - w / 2
+                arrowPosition.x = w / 2 - mPadding / 2 - radius
                 contentPosition.y = anchorPosition[1]
             }
             Gravity.CENTER -> {
@@ -517,19 +487,28 @@ class Tooltip private constructor(private val context: Context, builder: Builder
         Timber.d("centerPosition: $centerPosition")
         Timber.d("contentPosition: $contentPosition")
 
-        val finalRect = Rect(
-                contentPosition.x,
-                contentPosition.y,
-                contentPosition.x + w,
-                contentPosition.y + h
-        )
+        val delta = findDelta(displayFrame, w, h, contentPosition)
 
-        if (!findOffset && !displayFrame.rectContainsWithTolerance(finalRect, mSizeTolerance.toInt())) {
-            Timber.e("content won't fit! $displayFrame, $finalRect")
-            return findPosition(parent, anchor, offset, gravity, params, true)
-        }
+        contentPosition.x += delta.x
+        arrowPosition.x -= delta.x
 
         return Positions(displayFrame, PointF(arrowPosition), centerPosition, PointF(contentPosition), gravity, params)
+    }
+
+    private tailrec fun findDelta(displayFrame: Rect, w: Int, h: Int, contentPosition: Point, delta: Point = Point(0, 0)): Point {
+        val finalRect = Rect(contentPosition.x + delta.x, displayFrame.bottom / 2, contentPosition.x + delta.x + w, displayFrame.bottom / 2)
+
+        return if (displayFrame.rectContainsWithTolerance(finalRect, mSizeTolerance)) {
+            delta
+        } else {
+            val newDelta = if (displayFrame.left < contentPosition.x) {
+                Point(delta.x - 1, delta.y)
+            } else {
+                Point(delta.x + 1, delta.y)
+            }
+
+            findDelta(displayFrame, w, h, contentPosition, newDelta)
+        }
     }
 
     private var mCurrentPosition: Positions? = null
