@@ -27,6 +27,7 @@ import androidx.core.view.setPadding
 import timber.log.Timber
 import java.lang.ref.WeakReference
 import java.util.*
+import kotlin.math.roundToInt
 
 /**
  * Created by alessandro crugnola on 12/12/15.
@@ -246,11 +247,7 @@ class Tooltip private constructor(private val context: Context, builder: Builder
     fun update(text: CharSequence?) {
         mText = text
         if (isShowing && null != mPopupView) {
-            mTextView.text = if (text is Spannable) {
-                text
-            } else {
-                HtmlCompat.fromHtml(text as String, HtmlCompat.FROM_HTML_MODE_COMPACT)
-            }
+            mTextView.text = text
         }
     }
 
@@ -338,11 +335,7 @@ class Tooltip private constructor(private val context: Context, builder: Builder
                 else
                     setPadding(mPadding / 2, mPadding / 2, mPadding / 2, mPadding / 2)
 
-                text = if (mText is Spannable) {
-                    mText
-                } else {
-                    HtmlCompat.fromHtml(this@Tooltip.mText as String, HtmlCompat.FROM_HTML_MODE_COMPACT)
-                }
+                text = mText
 
                 mMaxWidth?.let { maxWidth = it }
                 mTypeface?.let { typeface = it }
@@ -418,10 +411,14 @@ class Tooltip private constructor(private val context: Context, builder: Builder
                     anchorPosition[1] += anchor.height / 2
                 }
                 Gravity.TOP -> {
-                    anchorPosition[0] += anchor.width / 2
+                    if (!findOffset) {
+                        anchorPosition[0] += anchor.width / 2
+                    }
                 }
                 Gravity.BOTTOM -> {
-                    anchorPosition[0] += anchor.width / 2
+                    if (!findOffset) {
+                        anchorPosition[0] += anchor.width / 2
+                    }
                     anchorPosition[1] += anchor.height
                 }
                 Gravity.CENTER -> {
@@ -455,8 +452,15 @@ class Tooltip private constructor(private val context: Context, builder: Builder
             }
             Gravity.TOP -> {
                 if (findOffset) {
-                    contentPosition.x = anchorPosition[0] - w + (anchor?.width ?: 0)
-                    arrowPosition.x = w - mPadding / 2 - radius - (anchor?.width ?: 0)
+                    val delta = anchorPosition[0] - (w - (anchor?.width ?: 0)) - 10
+
+                    if (delta > displayFrame.left) {
+                        contentPosition.x = delta
+                        arrowPosition.x = w + mPadding * 2 - (anchor?.width ?: 0) + 20
+                    } else {
+                        contentPosition.x = anchorPosition[0]
+                        arrowPosition.x = (anchor?.width ?: 0) / 2 - 20
+                    }
                 } else {
                     contentPosition.x = anchorPosition[0] - w / 2
                     arrowPosition.x = w / 2 - mPadding / 2 - radius
@@ -471,8 +475,15 @@ class Tooltip private constructor(private val context: Context, builder: Builder
             }
             Gravity.BOTTOM -> {
                 if (findOffset) {
-                    contentPosition.x = anchorPosition[0] - w + (anchor?.width ?: 0)
-                    arrowPosition.x = w - mPadding / 2 - radius - (anchor?.width ?: 0)
+                    val delta = anchorPosition[0] - (w - (anchor?.width ?: 0)) - 10
+
+                    if (delta > displayFrame.left) {
+                        contentPosition.x = delta
+                        arrowPosition.x = w + mPadding * 2 - (anchor?.width ?: 0) + 20
+                    } else {
+                        contentPosition.x = anchorPosition[0]
+                        arrowPosition.x = (anchor?.width ?: 0) / 2 - 20
+                    }
                 } else {
                     contentPosition.x = anchorPosition[0] - w / 2
                     arrowPosition.x = w / 2 - mPadding / 2 - radius
