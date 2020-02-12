@@ -54,6 +54,7 @@ class Tooltip private constructor(private val context: Context, builder: Builder
 
     private val mGravities = Gravity.values().filter { it != Gravity.CENTER }
     private var isVisible = false
+    private var isDismissed = false
     private val mSizeTolerance = context.resources.displayMetrics.density * 10
 
     private val mLayoutInsetDecor = true
@@ -203,6 +204,8 @@ class Tooltip private constructor(private val context: Context, builder: Builder
     private var mPrepareFun: ((tooltip: Tooltip) -> Unit)? = null
     private var mShownFunc: ((tooltip: Tooltip) -> Unit)? = null
     private var mHiddenFunc: ((tooltip: Tooltip) -> Unit)? = null
+    private var mOnTouchInsideFunc: ((tooltip: Tooltip) -> Unit)? = null
+    private var mOnTouchOutsideFunc: ((tooltip: Tooltip) -> Unit)? = null
 
     @Suppress("UNUSED")
     fun doOnFailure(func: ((tooltip: Tooltip) -> Unit)?): Tooltip {
@@ -225,6 +228,18 @@ class Tooltip private constructor(private val context: Context, builder: Builder
     @Suppress("UNUSED")
     fun doOnHidden(func: ((tooltip: Tooltip) -> Unit)?): Tooltip {
         mHiddenFunc = func
+        return this
+    }
+
+    @Suppress("UNUSED")
+    fun doOnTouchInside(func: ((tooltip: Tooltip) -> Unit)?): Tooltip {
+        mOnTouchInsideFunc = func
+        return this
+    }
+
+    @Suppress("UNUSED")
+    fun doOnTouchOutside(func: ((tooltip: Tooltip) -> Unit)?): Tooltip {
+        mOnTouchOutsideFunc = func
         return this
     }
 
@@ -617,6 +632,7 @@ class Tooltip private constructor(private val context: Context, builder: Builder
     fun show(parent: View, gravity: Gravity, fitToScreen: Boolean = false) {
         if (isShowing || (mHasAnchorView && mAnchorView?.get() == null)) return
 
+        isDismissed = false
         isVisible = false
 
         val params = createPopupLayoutParams(parent.windowToken)
@@ -645,17 +661,24 @@ class Tooltip private constructor(private val context: Context, builder: Builder
         fadeOut()
     }
 
-    fun dismiss() {
+    fun dismiss(delay: Long = 0L) {
         if (isShowing && mPopupView != null) {
-            removeListeners(mAnchorView?.get())
-            removeCallbacks()
-            windowManager.removeView(mPopupView)
-            Timber.v("dismiss: $mPopupView")
-            mPopupView = null
-            isShowing = false
-            isVisible = false
+            if (delay == 0L) {
+                removeListeners(mAnchorView?.get())
+                removeCallbacks()
+                windowManager.removeView(mPopupView)
+                Timber.v("dismiss: $mPopupView")
+                mPopupView = null
+                isShowing = false
+                isVisible = false
 
-            mHiddenFunc?.invoke(this)
+                mHiddenFunc?.invoke(this)
+            } else if (!isDismissed) {
+                isDismissed = true
+
+                mHandler.removeCallbacks(hideRunnable)
+                mHandler.postDelayed(hideRunnable, delay)
+            }
         }
     }
 
@@ -760,6 +783,12 @@ class Tooltip private constructor(private val context: Context, builder: Builder
             val r1 = Rect()
             mTextView.getGlobalVisibleRect(r1)
             val containsTouch = r1.contains(event.x.toInt(), event.y.toInt())
+
+            if (containsTouch) {
+                mOnTouchInsideFunc?.invoke(this@Tooltip)
+            } else {
+                mOnTouchOutsideFunc?.invoke(this@Tooltip)
+            }
 
             if (mClosePolicy.anywhere()) {
                 hide()
