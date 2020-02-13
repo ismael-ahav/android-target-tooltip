@@ -79,6 +79,7 @@ Tooltip style can be customized in your style object:
     <!-- default style -->
     <declare-styleable name="TooltipLayout">
         <attr name="ttlm_padding" format="dimension" />
+        <attr name="ttlm_arrowSize" format="dimension" />
         <attr name="ttlm_strokeColor" format="color" />
         <attr name="ttlm_backgroundColor" format="color" />
         <attr name="ttlm_strokeWeight" format="dimension" />
