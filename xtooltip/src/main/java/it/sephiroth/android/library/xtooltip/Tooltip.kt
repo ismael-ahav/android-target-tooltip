@@ -7,7 +7,6 @@ import android.content.Context
 import android.graphics.*
 import android.os.Handler
 import android.os.IBinder
-import android.text.Spannable
 import android.view.*
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
@@ -22,12 +21,9 @@ import androidx.annotation.StringRes
 import androidx.annotation.StyleRes
 import androidx.appcompat.view.ContextThemeWrapper
 import androidx.appcompat.widget.AppCompatTextView
-import androidx.core.text.HtmlCompat
 import androidx.core.view.setPadding
 import timber.log.Timber
 import java.lang.ref.WeakReference
-import java.util.*
-import kotlin.math.roundToInt
 
 /**
  * Created by alessandro crugnola on 12/12/15.
@@ -68,6 +64,7 @@ class Tooltip private constructor(private val context: Context, builder: Builder
     private var mAnchorPoint: Point
     private var mShowArrow: Boolean
     private var mPadding: Int = 0
+    private var mArrowSize: Int = 0
     private var mActivateDelay: Long
     private var mClosePolicy: ClosePolicy
     private var mShowDuration: Long
@@ -145,7 +142,8 @@ class Tooltip private constructor(private val context: Context, builder: Builder
                     builder.defStyleAttr,
                     builder.defStyleRes
                                    )
-        this.mPadding = theme.getDimensionPixelSize(R.styleable.TooltipLayout_ttlm_padding, 30)
+        this.mArrowSize = theme.getDimensionPixelSize(R.styleable.TooltipLayout_ttlm_arrowSize, 15)
+        this.mPadding = theme.getDimensionPixelSize(R.styleable.TooltipLayout_ttlm_padding, 30) + mArrowSize
         mOverlayStyle =
                 theme.getResourceId(
                         R.styleable.TooltipLayout_ttlm_overlayStyle,
@@ -444,21 +442,21 @@ class Tooltip private constructor(private val context: Context, builder: Builder
             Gravity.LEFT -> {
                 contentPosition.x = anchorPosition[0] - w
                 contentPosition.y = anchorPosition[1] - h / 2
-                arrowPosition.y = h / 2 - mPadding / 2 - radius
+                arrowPosition.y = h / 2 - mArrowSize - radius
             }
             Gravity.TOP -> {
                 contentPosition.x = anchorPosition[0] - w / 2
-                arrowPosition.x = w / 2 - mPadding / 2 - radius - offset.x
+                arrowPosition.x = w / 2 - mArrowSize - radius - offset.x
                 contentPosition.y = anchorPosition[1] - h
             }
             Gravity.RIGHT -> {
                 contentPosition.x = anchorPosition[0]
                 contentPosition.y = anchorPosition[1] - h / 2
-                arrowPosition.y = h / 2 - mPadding / 2 - radius
+                arrowPosition.y = h / 2 - mArrowSize - radius
             }
             Gravity.BOTTOM -> {
                 contentPosition.x = anchorPosition[0] - w / 2
-                arrowPosition.x = w / 2 - mPadding / 2 - radius
+                arrowPosition.x = w / 2 - mArrowSize - radius
                 contentPosition.y = anchorPosition[1]
             }
             Gravity.CENTER -> {
@@ -528,7 +526,7 @@ class Tooltip private constructor(private val context: Context, builder: Builder
 
             mDrawable?.setAnchor(
                     it.gravity,
-                    if (!mShowArrow) 0 else mPadding / 2,
+                    if (!mShowArrow) 0 else mArrowSize,
                     if (!mShowArrow) null else PointF(it.arrowPointX, it.arrowPointY))
 
             offsetBy(0f, 0f)
